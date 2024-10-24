@@ -18,25 +18,34 @@ def track_url_access(method):
         return method(url, *args, **kwargs)
     return wrapper
 
+def cache_page(method):
+    '''Decorator to cache the page content for 10 seconds.'''
+    @wraps(method)
+    def wrapper(url: str, *args, **kwargs) -> str:
+        cache_key = f"cached:{url}"
+        # Check if the page content is already cached
+        cached_page = r.get(cache_key)
+        if cached_page:
+            # Return cached content if available
+            return cached_page.decode('utf-8')
+
+        # Otherwise, fetch the page content
+        page_content = method(url, *args, **kwargs)
+        
+        # Cache the content for 10 seconds
+        r.setex(cache_key, 10, page_content)
+        return page_content
+    return wrapper
+
 @track_url_access
+@cache_page
 def get_page(url: str) -> str:
-    '''Fetches the content of a web page and caches it for 10 seconds.'''
-    # Check if the page content is already cached
-    cached_page = r.get(f"cached:{url}")
-    if cached_page:
-        return cached_page.decode('utf-8')
-
-    # If not cached, fetch the page using requests
+    '''Fetches the content of a web page.'''
     response = requests.get(url)
-    page_content = response.text
-
-    # Cache the page content for 10 seconds
-    r.setex(f"cached:{url}", 10, page_content)
-    
-    return page_content
+    return response.text
 
 if __name__ == "__main__":
     url = "http://slowwly.robertomurray.co.uk"
-    print(get_page(url))
-    print(get_page(url))  # Should retrieve from cache if within 10 seconds
+    print(get_page(url))  # First request, fetches and caches
+    print(get_page(url))  # Second request, serves from cache if within 10 seconds
 
