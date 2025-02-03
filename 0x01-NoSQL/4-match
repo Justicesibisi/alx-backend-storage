@@ -1,3 +1,2 @@
-// Lists all documents with name="ALX" in the school collection
-
+// Lists all documents with name="ALX" in the collection school
 db.school.find({ name: "ALX" })
